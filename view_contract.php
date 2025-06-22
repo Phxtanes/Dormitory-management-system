@@ -85,7 +85,7 @@ $pending_amount = $total_amount - $paid_amount;
 
 <div class="container-fluid">
     <!-- หัวข้อหน้า -->
-    <div class="row mb-4">
+    <div class="row mb-4 mt-3">
         <div class="col-md-8">
             <h2 class="mb-1">
                 <i class="bi bi-file-earmark-text text-primary"></i>
