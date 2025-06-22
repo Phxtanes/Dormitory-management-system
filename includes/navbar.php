@@ -1,3 +1,54 @@
+<?php
+// ตรวจสอบว่าเริ่ม session แล้วหรือยัง
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// ตรวจสอบการล็อกอิน
+if (!isset($_SESSION['user_id'])) {
+    // ถ้ายังไม่ล็อกอิน ให้ redirect ไปหน้า login
+    $current_url = $_SERVER['REQUEST_URI'];
+    $redirect_url = 'login.php?redirect=' . urlencode($current_url);
+    header('Location: ' . $redirect_url);
+    exit;
+}
+
+// Function สำหรับตรวจสอบสิทธิ์
+function is_admin() {
+    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
+}
+
+function is_staff() {
+    return isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'staff']);
+}
+?>
+
+<style>
+    body {
+        padding-top: 76px; /* เพิ่ม padding เพื่อไม่ให้เนื้อหาถูกปิดด้วย fixed navbar */
+    }
+    
+    .navbar {
+        position: fixed !important;
+        top: 0;
+        width: 100%;
+        z-index: 1030;
+    }
+    
+    @media (max-width: 768px) {
+        body {
+            padding-top: 70px;
+        }
+        
+        .navbar-collapse {
+            background-color: #6c757d;
+            margin-top: 10px;
+            border-radius: 8px;
+            padding: 10px;
+        }
+    }
+</style>
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-secondary">
     <div class="container-fluid">
         <a class="navbar-brand" href="index.php">
@@ -60,23 +111,50 @@
                         <li><a class="dropdown-item" href="reports_overdue.php">รายงานค้างชำระ</a></li>
                     </ul>
                 </li>
+                
+                <?php if (is_admin()): ?>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-gear"></i> จัดการระบบ
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="users.php">จัดการผู้ใช้</a></li>
+                        <li><a class="dropdown-item" href="system_settings.php">ตั้งค่าระบบ</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="backup.php">สำรองข้อมูล</a></li>
+                    </ul>
+                </li>
+                <?php endif; ?>
             </ul>
             
+            <!-- User Dropdown -->
             <ul class="navbar-nav">
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i>
-                        <?php echo isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'ผู้ใช้งาน'; ?>
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <span>
+                            <?php echo htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'ผู้ใช้งาน'); ?>
+                            <small class="d-block text-muted" style="font-size: 0.75rem;">
+                                <?php echo $_SESSION['user_role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'เจ้าหน้าที่'; ?>
+                            </small>
+                        </span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <div class="dropdown-item-text">
+                                <div class="fw-semibold"><?php echo htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username']); ?></div>
+                                <small class="text-muted">@<?php echo htmlspecialchars($_SESSION['username']); ?></small>
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="profile.php">
-                            <i class="bi bi-person"></i> ข้อมูลส่วนตัว
+                            <i class="bi bi-person"></i> โปรไฟล์
                         </a></li>
                         <li><a class="dropdown-item" href="settings.php">
                             <i class="bi bi-gear"></i> ตั้งค่า
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="logout.php">
+                        <li><a class="dropdown-item text-danger" href="logout.php" onclick="return confirm('ต้องการออกจากระบบหรือไม่?')">
                             <i class="bi bi-box-arrow-right"></i> ออกจากระบบ
                         </a></li>
                     </ul>
@@ -85,3 +163,69 @@
         </div>
     </div>
 </nav>
+
+<!-- Flash Messages -->
+<?php if (isset($_SESSION['success_message'])): ?>
+<div class="container-fluid mt-3">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>
+        <?php 
+        echo htmlspecialchars($_SESSION['success_message']); 
+        unset($_SESSION['success_message']);
+        ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error_message'])): ?>
+<div class="container-fluid mt-3">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <?php 
+        echo htmlspecialchars($_SESSION['error_message']); 
+        unset($_SESSION['error_message']);
+        ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['info_message'])): ?>
+<div class="container-fluid mt-3">
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="bi bi-info-circle me-2"></i>
+        <?php 
+        echo htmlspecialchars($_SESSION['info_message']); 
+        unset($_SESSION['info_message']);
+        ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+<?php endif; ?>
+
+<script>
+// Auto-hide alerts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+    alerts.forEach(function(alert) {
+        setTimeout(function() {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+});
+
+// Set active nav item based on current page
+document.addEventListener('DOMContentLoaded', function() {
+    const currentPage = window.location.pathname.split('/').pop();
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link:not(.dropdown-toggle)');
+    
+    navLinks.forEach(function(link) {
+        const href = link.getAttribute('href');
+        if (href && href.includes(currentPage)) {
+            link.classList.add('active');
+        }
+    });
+});
+</script>
