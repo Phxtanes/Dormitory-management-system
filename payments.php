@@ -97,15 +97,64 @@ try {
         FROM payments p";
     
     if (!empty($params)) {
-        $stats_sql .= " JOIN invoices i ON p.invoice_id = i.invoice_id
-                       JOIN contracts c ON i.contract_id = c.contract_id
-                       JOIN rooms r ON c.room_id = r.room_id
-                       JOIN tenants t ON c.tenant_id = t.tenant_id
-                       WHERE " . str_replace("1=1 AND ", "", substr($sql, strpos($sql, "WHERE")));
+        // สร้าง WHERE clause ใหม่สำหรับสถิติ
+        $stats_where = "";
+        $stats_params = [];
+        
+        if (!empty($search)) {
+            $stats_where = " JOIN invoices i ON p.invoice_id = i.invoice_id
+                            JOIN contracts c ON i.contract_id = c.contract_id
+                            JOIN rooms r ON c.room_id = r.room_id
+                            JOIN tenants t ON c.tenant_id = t.tenant_id
+                            WHERE (t.first_name LIKE ? OR t.last_name LIKE ? OR r.room_number LIKE ? OR p.payment_reference LIKE ?)";
+            $stats_params = array_fill(0, 4, $search_term);
+        }
+        
+        if (!empty($method_filter)) {
+            if (empty($stats_where)) {
+                $stats_where = " WHERE p.payment_method = ?";
+            } else {
+                $stats_where .= " AND p.payment_method = ?";
+            }
+            $stats_params[] = $method_filter;
+        }
+        
+        if (!empty($date_from)) {
+            if (empty($stats_where)) {
+                $stats_where = " WHERE p.payment_date >= ?";
+            } else {
+                $stats_where .= " AND p.payment_date >= ?";
+            }
+            $stats_params[] = $date_from;
+        }
+        
+        if (!empty($date_to)) {
+            if (empty($stats_where)) {
+                $stats_where = " WHERE p.payment_date <= ?";
+            } else {
+                $stats_where .= " AND p.payment_date <= ?";
+            }
+            $stats_params[] = $date_to;
+        }
+        
+        if (!empty($invoice_filter)) {
+            if (empty($stats_where)) {
+                $stats_where = " WHERE p.invoice_id = ?";
+            } else {
+                $stats_where .= " AND p.invoice_id = ?";
+            }
+            $stats_params[] = $invoice_filter;
+        }
+        
+        $stats_sql .= $stats_where;
+        
+        $stmt = $pdo->prepare($stats_sql);
+        $stmt->execute($stats_params);
+    } else {
+        $stmt = $pdo->prepare($stats_sql);
+        $stmt->execute();
     }
     
-    $stmt = $pdo->prepare($stats_sql);
-    $stmt->execute($params);
     $stats = $stmt->fetch();
     
     // ดึงข้อมูลรายได้รายเดือนล่าสุด 6 เดือน
@@ -124,509 +173,327 @@ try {
     
 } catch(PDOException $e) {
     $error_message = "เกิดข้อผิดพลาดในการดึงข้อมูล: " . $e->getMessage();
-    $payments = [];
-    $stats = [
-        'total_payments' => 0,
-        'total_amount' => 0,
-        'avg_amount' => 0,
-        'cash_amount' => 0,
-        'transfer_amount' => 0,
-        'mobile_amount' => 0,
-        'other_amount' => 0
-    ];
 }
 ?>
 
-<?php include 'includes/navbar.php'; ?>
+<?php include 'includes/navbar.php'?>
 
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <!-- หัวข้อหน้า -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">
-                    <i class="bi bi-cash-coin"></i>
-                    ประวัติการชำระเงิน
-                </h2>
-                <div class="btn-group">
-                    <a href="invoices.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-receipt"></i>
-                        ใบแจ้งหนี้
-                    </a>
-                    <button type="button" class="btn btn-outline-primary" onclick="window.print()">
-                        <i class="bi bi-printer"></i>
-                        พิมพ์รายงาน
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="exportToExcel()">
-                        <i class="bi bi-download"></i>
-                        ส่งออก Excel
-                    </button>
-                </div>
-            </div>
+<!-- แสดงข้อความสถานะ -->
+<?php if (isset($success_message)): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i><?php echo $success_message; ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
 
-            <!-- แสดงข้อความแจ้งเตือน -->
-            <?php if (isset($success_message)): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle"></i>
-                    <?php echo $success_message; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
+<?php if (isset($error_message)): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i><?php echo $error_message; ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
 
-            <?php if (isset($error_message)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <?php echo $error_message; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
+<!-- หัวข้อหน้า -->
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <h2><i class="bi bi-receipt text-success me-2"></i><?php echo $page_title; ?></h2>
+</div>
 
-            <!-- สถิติการชำระเงิน -->
-            <div class="row mb-4">
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card text-white bg-primary h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-cash-coin fs-2"></i>
-                            <h4 class="mt-2"><?php echo number_format($stats['total_payments']); ?></h4>
-                            <p class="mb-0">รายการชำระ</p>
+
+<!-- สถิติสรุป -->
+<?php if (!empty($payments)): ?>
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">ยอดรวมทั้งหมด</h6>
+                            <h4 class="mb-0"><?php echo formatCurrency($stats['total_amount'] ?? 0); ?></h4>
                         </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card text-white bg-success h-100">
-                        <div class="card-body text-center">
+                        <div class="align-self-center">
                             <i class="bi bi-currency-dollar fs-2"></i>
-                            <h5 class="mt-2"><?php echo formatCurrency($stats['total_amount']); ?></h5>
-                            <p class="mb-0">ยอดรวมที่รับ</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card text-white bg-info h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-graph-up fs-2"></i>
-                            <h5 class="mt-2"><?php echo formatCurrency($stats['avg_amount']); ?></h5>
-                            <p class="mb-0">ยอดเฉลี่ย/รายการ</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-3">
-                    <div class="card text-white bg-warning h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-calendar-month fs-2"></i>
-                            <h5 class="mt-2"><?php echo formatCurrency(isset($monthly_data[0]) ? $monthly_data[0]['total_amount'] : 0); ?></h5>
-                            <p class="mb-0">รายได้เดือนนี้</p>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- กราฟวิธีการชำระเงิน -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="bi bi-pie-chart"></i>
-                                สัดส่วนวิธีการชำระเงิน
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="paymentMethodChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="bi bi-bar-chart"></i>
-                                รายได้ 6 เดือนย้อนหลัง
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="monthlyChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ฟอร์มค้นหาและกรอง -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-funnel"></i>
-                        ค้นหาและกรองข้อมูล
-                    </h5>
-                </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
                 <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="search" class="form-label">ค้นหา</label>
-                            <input type="text" class="form-control" id="search" name="search" 
-                                   value="<?php echo htmlspecialchars($search); ?>" 
-                                   placeholder="ชื่อ, ห้อง, เลขที่อ้างอิง">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">จำนวนรายการ</h6>
+                            <h4 class="mb-0"><?php echo number_format($stats['total_payments'] ?? 0); ?> รายการ</h4>
                         </div>
-                        <div class="col-md-2">
-                            <label for="method" class="form-label">วิธีการชำระ</label>
-                            <select class="form-select" id="method" name="method">
-                                <option value="">ทั้งหมด</option>
-                                <option value="cash" <?php echo $method_filter == 'cash' ? 'selected' : ''; ?>>เงินสด</option>
-                                <option value="bank_transfer" <?php echo $method_filter == 'bank_transfer' ? 'selected' : ''; ?>>โอนเงิน</option>
-                                <option value="mobile_banking" <?php echo $method_filter == 'mobile_banking' ? 'selected' : ''; ?>>Mobile Banking</option>
-                                <option value="other" <?php echo $method_filter == 'other' ? 'selected' : ''; ?>>อื่นๆ</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="date_from" class="form-label">วันที่เริ่มต้น</label>
-                            <input type="date" class="form-control" id="date_from" name="date_from" 
-                                   value="<?php echo htmlspecialchars($date_from); ?>">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="date_to" class="form-label">วันที่สิ้นสุด</label>
-                            <input type="date" class="form-control" id="date_to" name="date_to" 
-                                   value="<?php echo htmlspecialchars($date_to); ?>">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-grid gap-2 d-md-flex">
-                                <button type="submit" class="btn btn-primary flex-fill">
-                                    <i class="bi bi-search"></i>
-                                    ค้นหา
-                                </button>
-                                <a href="payments.php" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- สถิติวิธีการชำระ -->
-            <div class="row mb-4">
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <div class="card border-success">
-                        <div class="card-body text-center">
-                            <i class="bi bi-cash fs-4 text-success"></i>
-                            <h6 class="mt-2">เงินสด</h6>
-                            <h5 class="text-success"><?php echo formatCurrency($stats['cash_amount']); ?></h5>
-                            <small class="text-muted">
-                                <?php echo $stats['total_amount'] > 0 ? number_format(($stats['cash_amount'] / $stats['total_amount']) * 100, 1) : 0; ?>%
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <div class="card border-primary">
-                        <div class="card-body text-center">
-                            <i class="bi bi-bank fs-4 text-primary"></i>
-                            <h6 class="mt-2">โอนเงิน</h6>
-                            <h5 class="text-primary"><?php echo formatCurrency($stats['transfer_amount']); ?></h5>
-                            <small class="text-muted">
-                                <?php echo $stats['total_amount'] > 0 ? number_format(($stats['transfer_amount'] / $stats['total_amount']) * 100, 1) : 0; ?>%
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <i class="bi bi-phone fs-4 text-info"></i>
-                            <h6 class="mt-2">Mobile Banking</h6>
-                            <h5 class="text-info"><?php echo formatCurrency($stats['mobile_amount']); ?></h5>
-                            <small class="text-muted">
-                                <?php echo $stats['total_amount'] > 0 ? number_format(($stats['mobile_amount'] / $stats['total_amount']) * 100, 1) : 0; ?>%
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-2">
-                    <div class="card border-secondary">
-                        <div class="card-body text-center">
-                            <i class="bi bi-three-dots fs-4 text-secondary"></i>
-                            <h6 class="mt-2">อื่นๆ</h6>
-                            <h5 class="text-secondary"><?php echo formatCurrency($stats['other_amount']); ?></h5>
-                            <small class="text-muted">
-                                <?php echo $stats['total_amount'] > 0 ? number_format(($stats['other_amount'] / $stats['total_amount']) * 100, 1) : 0; ?>%
-                            </small>
+                        <div class="align-self-center">
+                            <i class="bi bi-receipt fs-2"></i>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- ตารางแสดงข้อมูลการชำระเงิน -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-list"></i>
-                        รายการการชำระเงิน
-                    </h5>
-                    <span class="badge bg-primary"><?php echo count($payments); ?> รายการ</span>
-                </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
                 <div class="card-body">
-                    <?php if (empty($payments)): ?>
-                        <div class="text-center py-5">
-                            <i class="bi bi-cash-coin display-1 text-muted"></i>
-                            <h4 class="text-muted mt-3">ไม่พบข้อมูลการชำระเงิน</h4>
-                            <p class="text-muted">
-                                <?php if (!empty($search) || !empty($method_filter) || !empty($date_from) || !empty($date_to)): ?>
-                                    ไม่มีข้อมูลที่ตรงกับเงื่อนไขการค้นหา
-                                <?php else: ?>
-                                    ยังไม่มีข้อมูลการชำระเงินในระบบ
-                                <?php endif; ?>
-                            </p>
-                            <?php if (!empty($search) || !empty($method_filter) || !empty($date_from) || !empty($date_to)): ?>
-                                <a href="payments.php" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-left"></i>
-                                    ดูทั้งหมด
-                                </a>
-                            <?php endif; ?>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">ค่าเฉลี่ยต่อรายการ</h6>
+                            <h4 class="mb-0"><?php echo formatCurrency($stats['avg_amount'] ?? 0); ?></h4>
                         </div>
-                    <?php else: ?>
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 150px;">วันที่ชำระ</th>
-                                        <th style="width: 150px;">เลขที่ใบแจ้งหนี้</th>
-                                        <th style="width: 180px;">ผู้เช่า</th>
-                                        <th style="width: 80px;">ห้อง</th>
-                                        <th style="width: 100px;">เดือน</th>
-                                        <th style="width: 120px;">จำนวนเงิน</th>
-                                        <th style="width: 120px;">วิธีการชำระ</th>
-                                        <th style="width: 150px;">เลขที่อ้างอิง</th>
-                                        <th style="width: 200px;">หมายเหตุ</th>
-                                        <th style="width: 100px;" class="text-center">จัดการ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($payments as $payment): ?>
-                                        <tr>
-                                            <td>
-                                                <div class="fw-bold"><?php echo formatDate($payment['payment_date']); ?></div>
-                                                <small class="text-muted"><?php echo formatDateTime($payment['created_at']); ?></small>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info"><?php echo $payment['invoice_number']; ?></span>
-                                                <br><small class="text-muted">
-                                                    ยอดบิล: <?php echo formatCurrency($payment['invoice_amount']); ?>
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar bg-primary text-white rounded-circle me-2 flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
-                                                        <?php echo mb_substr($payment['first_name'], 0, 1, 'UTF-8'); ?>
-                                                    </div>
-                                                    <div class="min-w-0">
-                                                        <div class="fw-bold text-truncate"><?php echo $payment['first_name'] . ' ' . $payment['last_name']; ?></div>
-                                                        <small class="text-muted d-block">
-                                                            <i class="bi bi-telephone"></i>
-                                                            <?php echo $payment['phone']; ?>
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-secondary">ห้อง <?php echo $payment['room_number']; ?></span>
-                                                <br><small class="text-muted">ชั้น <?php echo $payment['floor_number']; ?></small>
-                                            </td>
-                                            <td class="text-center">
-                                                <div class="fw-bold"><?php echo thaiMonth(substr($payment['invoice_month'], 5, 2)); ?></div>
-                                                <small class="text-muted"><?php echo substr($payment['invoice_month'], 0, 4); ?></small>
-                                            </td>
-                                            <td class="text-end">
-                                                <div class="fw-bold text-success"><?php echo formatCurrency($payment['payment_amount']); ?></div>
-                                                <?php if ($payment['payment_amount'] != $payment['invoice_amount']): ?>
-                                                    <small class="text-warning">
-                                                        <i class="bi bi-exclamation-triangle"></i>
-                                                        ต่างจากบิล
-                                                    </small>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <?php
-                                                $method_class = '';
-                                                $method_text = '';
-                                                $method_icon = '';
-                                                
-                                                switch ($payment['payment_method']) {
-                                                    case 'cash':
-                                                        $method_class = 'bg-success';
-                                                        $method_text = 'เงินสด';
-                                                        $method_icon = 'bi-cash';
-                                                        break;
-                                                    case 'bank_transfer':
-                                                        $method_class = 'bg-primary';
-                                                        $method_text = 'โอนเงิน';
-                                                        $method_icon = 'bi-bank';
-                                                        break;
-                                                    case 'mobile_banking':
-                                                        $method_class = 'bg-info';
-                                                        $method_text = 'Mobile Banking';
-                                                        $method_icon = 'bi-phone';
-                                                        break;
-                                                    case 'other':
-                                                        $method_class = 'bg-secondary';
-                                                        $method_text = 'อื่นๆ';
-                                                        $method_icon = 'bi-three-dots';
-                                                        break;
-                                                }
-                                                ?>
-                                                <span class="badge <?php echo $method_class; ?>">
-                                                    <i class="<?php echo $method_icon; ?>"></i>
-                                                    <?php echo $method_text; ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <?php if ($payment['payment_reference']): ?>
-                                                    <code class="small"><?php echo $payment['payment_reference']; ?></code>
-                                                <?php else: ?>
-                                                    <span class="text-muted">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <?php if ($payment['notes']): ?>
-                                                    <small><?php echo htmlspecialchars($payment['notes']); ?></small>
-                                                <?php else: ?>
-                                                    <span class="text-muted">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="text-center">
-                                                <div class="btn-group-vertical btn-group-sm" role="group">
-                                                    <a href="view_payment.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                       class="btn btn-outline-info btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="ดูรายละเอียด">
-                                                        <i class="bi bi-eye"></i>
-                                                        ดูรายละเอียด
-                                                    </a>
-                                                    <a href="print_receipt.php?id=<?php echo $payment['payment_id']; ?>" 
-                                                       class="btn btn-outline-secondary btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="พิมพ์ใบเสร็จ"
-                                                       target="_blank">
-                                                        <i class="bi bi-printer"></i>
-                                                        พิมพ์ใบเสร็จ
-                                                    </a>
-                                                    <a href="payments.php?delete=<?php echo $payment['payment_id']; ?>" 
-                                                       class="btn btn-outline-danger btn-sm" 
-                                                       data-bs-toggle="tooltip" 
-                                                       title="ลบ"
-                                                       onclick="return confirmDelete('คุณต้องการลบประวัติการชำระเงินจำนวน <?php echo formatCurrency($payment['payment_amount']); ?> หรือไม่?\n\nการลบจะทำให้:\n- ประวัติการชำระถูกลบ\n- ใบแจ้งหนี้กลับเป็นสถานะรอชำระ\n- ไม่สามารถยกเลิกการดำเนินการได้')">
-                                                        <i class="bi bi-trash"></i>
-                                                        ลบ
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                        <div class="align-self-center">
+                            <i class="bi bi-calculator fs-2"></i>
                         </div>
-                        
-                        <!-- สรุปข้อมูลท้ายตาราง -->
-                        <div class="border-top pt-3 mt-3">
-                            <div class="row text-center">
-                                <div class="col-md-3">
-                                    <h6 class="text-muted mb-1">วิธีการยอดนิยม</h6>
-                                    <h4 class="text-warning">
-                                        <?php 
-                                        $methods = ['cash' => 'เงินสด', 'bank_transfer' => 'โอนเงิน', 'mobile_banking' => 'Mobile Banking', 'other' => 'อื่นๆ'];
-                                        $popular_method = '';
-                                        $max_amount = 0;
-                                        foreach (['cash_amount', 'transfer_amount', 'mobile_amount', 'other_amount'] as $i => $key) {
-                                            if ($stats[$key] > $max_amount) {
-                                                $max_amount = $stats[$key];
-                                                $popular_method = array_values($methods)[$i];
-                                            }
-                                        }
-                                        echo $popular_method ?: 'ไม่มีข้อมูล';
-                                        ?>
-                                    </h4>
-                                </div>
-                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">เงินสด</h6>
+                            <h4 class="mb-0"><?php echo formatCurrency($stats['cash_amount'] ?? 0); ?></h4>
                         </div>
-                    <?php endif; ?>
+                        <div class="align-self-center">
+                            <i class="bi bi-cash fs-2"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+<?php endif; ?>
+
+<!-- ฟอร์มค้นหาและกรอง -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-funnel me-2"></i>ค้นหาและกรอง</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">ค้นหา</label>
+                <input type="text" class="form-control" name="search" 
+                       value="<?php echo htmlspecialchars($search); ?>" 
+                       placeholder="ชื่อผู้เช่า, เลขห้อง, เลขที่อ้างอิง">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">วิธีชำระ</label>
+                <select class="form-select" name="method">
+                    <option value="">ทั้งหมด</option>
+                    <option value="cash" <?php echo $method_filter == 'cash' ? 'selected' : ''; ?>>เงินสด</option>
+                    <option value="bank_transfer" <?php echo $method_filter == 'bank_transfer' ? 'selected' : ''; ?>>โอนเงิน</option>
+                    <option value="mobile_banking" <?php echo $method_filter == 'mobile_banking' ? 'selected' : ''; ?>>แอปธนาคาร</option>
+                    <option value="other" <?php echo $method_filter == 'other' ? 'selected' : ''; ?>>อื่นๆ</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">วันที่เริ่มต้น</label>
+                <input type="date" class="form-control" name="date_from" 
+                       value="<?php echo htmlspecialchars($date_from); ?>">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">วันที่สิ้นสุด</label>
+                <input type="date" class="form-control" name="date_to" 
+                       value="<?php echo htmlspecialchars($date_to); ?>">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">เลขที่ใบแจ้งหนี้</label>
+                <input type="number" class="form-control" name="invoice_id" 
+                       value="<?php echo htmlspecialchars($invoice_filter); ?>" 
+                       placeholder="ใส่เลข ID">
+            </div>
+            
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        <?php if (!empty($search) || !empty($method_filter) || !empty($date_from) || !empty($date_to) || !empty($invoice_filter)): ?>
+            <div class="mt-3">
+                <a href="payments.php" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>ล้างตัวกรอง
+                </a>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- ตารางแสดงข้อมูล -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">รายการชำระเงิน</h5>
+        <small class="text-muted">ทั้งหมด <?php echo count($payments); ?> รายการ</small>
+    </div>
+    <div class="card-body">
+        <?php if (empty($payments)): ?>
+            <div class="text-center py-4">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h5 class="text-muted mt-3">ไม่พบข้อมูลการชำระเงิน</h5>
+                <p class="text-muted">ลองปรับเปลี่ยนเงื่อนไขการค้นหา</p>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="10%">วันที่ชำระ</th>
+                            <th width="12%">ใบแจ้งหนี้</th>
+                            <th width="15%">ผู้เช่า</th>
+                            <th width="8%">ห้อง</th>
+                            <th width="12%">ยอดชำระ</th>
+                            <th width="10%">วิธีชำระ</th>
+                            <th width="12%">เลขที่อ้างอิง</th>
+                            <th width="15%">หมายเหตุ</th>
+                            <th width="6%">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($payments as $payment): ?>
+                            <tr>
+                                <td>
+                                    <div class="fw-bold"><?php echo formatDate($payment['payment_date']); ?></div>
+                                    <small class="text-muted"><?php echo formatDateTime($payment['created_at']); ?></small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info"><?php echo $payment['invoice_number']; ?></span>
+                                    <br><small class="text-muted">
+                                        ยอดบิล: <?php echo formatCurrency($payment['invoice_amount']); ?>
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-primary text-white rounded-circle me-2 flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
+                                            <?php echo mb_substr($payment['first_name'], 0, 1, 'UTF-8'); ?>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="fw-bold text-truncate"><?php echo $payment['first_name'] . ' ' . $payment['last_name']; ?></div>
+                                            <small class="text-muted"><?php echo $payment['phone']; ?></small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary"><?php echo $payment['room_number']; ?></span>
+                                    <br><small class="text-muted">ชั้น <?php echo $payment['floor_number']; ?></small>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-success"><?php echo formatCurrency($payment['payment_amount']); ?></div>
+                                </td>
+                                <td>
+                                    <?php
+                                    $method_labels = [
+                                        'cash' => '<span class="badge bg-success">เงินสด</span>',
+                                        'bank_transfer' => '<span class="badge bg-primary">โอนเงิน</span>',
+                                        'mobile_banking' => '<span class="badge bg-info">แอปธนาคาร</span>',
+                                        'other' => '<span class="badge bg-secondary">อื่นๆ</span>'
+                                    ];
+                                    echo $method_labels[$payment['payment_method']] ?? '<span class="badge bg-secondary">ไม่ระบุ</span>';
+                                    ?>
+                                </td>
+                                <td>
+                                    <span class="font-monospace"><?php echo $payment['payment_reference'] ?: '-'; ?></span>
+                                </td>
+                                <td>
+                                    <small><?php echo $payment['notes'] ? htmlspecialchars($payment['notes']) : '-'; ?></small>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="payments.php?delete=<?php echo $payment['payment_id']; ?>" 
+                                           class="btn btn-outline-danger btn-sm" 
+                                           data-bs-toggle="tooltip" 
+                                           title="ลบ"
+                                           onclick="return confirm('ต้องการลบประวัติการชำระนี้หรือไม่?')">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- สรุปข้อมูลท้ายตาราง -->
+            <div class="border-top pt-3 mt-3">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h6 class="text-muted mb-1">จำนวนรายการ</h6>
+                            <h5 class="text-primary"><?php echo number_format(count($payments)); ?></h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h6 class="text-muted mb-1">ยอดรวม</h6>
+                            <h5 class="text-success"><?php echo formatCurrency($stats['total_amount'] ?? 0); ?></h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h6 class="text-muted mb-1">เงินสด</h6>
+                            <h5 class="text-warning"><?php echo formatCurrency($stats['cash_amount'] ?? 0); ?></h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-1">โอน/แอป</h6>
+                        <h5 class="text-info"><?php echo formatCurrency(($stats['transfer_amount'] ?? 0) + ($stats['mobile_amount'] ?? 0)); ?></h5>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
 
+<!-- กราฟรายได้รายเดือน -->
+<?php if (!empty($monthly_data)): ?>
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-bar-chart me-2"></i>รายได้รายเดือน (6 เดือนล่าสุด)</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyChart" height="100"></canvas>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php require_once 'includes/footer.php'; ?>
+
+<!-- Chart.js และสคริปต์กราฟ -->
+<?php if (!empty($monthly_data)): ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // กราฟวงกลมแสดงวิธีการชำระเงิน
-    const methodCtx = document.getElementById('paymentMethodChart').getContext('2d');
-    new Chart(methodCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['เงินสด', 'โอนเงิน', 'Mobile Banking', 'อื่นๆ'],
-            datasets: [{
-                data: [
-                    <?php echo $stats['cash_amount']; ?>,
-                    <?php echo $stats['transfer_amount']; ?>,
-                    <?php echo $stats['mobile_amount']; ?>,
-                    <?php echo $stats['other_amount']; ?>
-                ],
-                backgroundColor: ['#28a745', '#007bff', '#17a2b8', '#6c757d'],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((context.parsed * 100) / total).toFixed(1) : 0;
-                            const amount = new Intl.NumberFormat('th-TH').format(context.parsed);
-                            return context.label + ': ' + amount + ' บาท (' + percentage + '%)';
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // กราฟรายได้รายเดือน
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-    new Chart(monthlyCtx, {
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    
+    const monthlyData = <?php echo json_encode(array_reverse($monthly_data)); ?>;
+    
+    new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: [
-                <?php 
-                $months = array_reverse($monthly_data);
-                foreach ($months as $month) {
-                    $monthNames = [
-                        '01' => 'ม.ค.', '02' => 'ก.พ.', '03' => 'มี.ค.', '04' => 'เม.ย.',
-                        '05' => 'พ.ค.', '06' => 'มิ.ย.', '07' => 'ก.ค.', '08' => 'ส.ค.',
-                        '09' => 'ก.ย.', '10' => 'ต.ค.', '11' => 'พ.ย.', '12' => 'ธ.ค.'
-                    ];
-                    $parts = explode('-', $month['month']);
-                    echo "'" . $monthNames[$parts[1]] . " " . $parts[0] . "',";
-                }
-                ?>
-            ],
+            labels: monthlyData.map(item => {
+                const [year, month] = item.month.split('-');
+                const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                                   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                return monthNames[parseInt(month) - 1] + ' ' + year;
+            }),
             datasets: [{
                 label: 'รายได้ (บาท)',
-                data: [
-                    <?php 
-                    foreach ($months as $month) {
-                        echo $month['total_amount'] . ",";
-                    }
-                    ?>
-                ],
-                backgroundColor: '#007bff',
-                borderColor: '#0056b3',
+                data: monthlyData.map(item => parseFloat(item.total_amount || 0)),
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
             }]
         },
@@ -646,143 +513,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'รายได้: ' + new Intl.NumberFormat('th-TH').format(context.parsed.y) + ' บาท';
-                        }
-                    }
-                }
             }
         }
     });
-    
-    // ฟังก์ชันส่งออก Excel
-    window.exportToExcel = function() {
-        const params = new URLSearchParams(window.location.search);
-        params.set('export', 'excel');
-        window.open('export_payments.php?' + params.toString(), '_blank');
-    };
-    
-    // Enhanced confirm delete
-    window.confirmDelete = function(message) {
-        return confirm(message);
-    };
 });
 </script>
+<?php endif; ?>
 
-<style>
-.table th {
-    white-space: nowrap;
-    vertical-align: middle;
-}
-
-.table td {
-    vertical-align: middle;
-}
-
-.btn-group-vertical .btn {
-    margin-bottom: 2px;
-}
-
-.btn-group-vertical .btn:last-child {
-    margin-bottom: 0;
-}
-
-.badge {
-    font-size: 0.75rem;
-}
-
-.avatar {
-    font-weight: 600;
-    font-size: 0.8rem;
-}
-
-.card {
-    transition: all 0.3s ease-in-out;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-
-.min-w-0 {
-    min-width: 0;
-}
-
-.text-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.border-end {
-    border-right: 1px solid #dee2e6 !important;
-}
-
-code {
-    font-size: 0.8rem;
-    background-color: #f8f9fa;
-    padding: 0.1rem 0.3rem;
-    border-radius: 0.25rem;
-}
-
-@media (max-width: 768px) {
-    .btn-group-vertical {
-        width: 100%;
-    }
-    
-    .btn-group-vertical .btn {
-        width: 100%;
-        margin-bottom: 1px;
-    }
-    
-    .border-end {
-        border-right: none !important;
-        border-bottom: 1px solid #dee2e6 !important;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-    }
-    
-    .border-end:last-child {
-        border-bottom: none !important;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-}
-
-@media print {
-    .btn, .dropdown, .alert, .modal {
-        display: none !important;
-    }
-    
-    .card {
-        border: 1px solid #000 !important;
-        box-shadow: none !important;
-    }
-    
-    .card-header {
-        background-color: #f8f9fa !important;
-        -webkit-print-color-adjust: exact;
-    }
-    
-    .table {
-        font-size: 12px;
-    }
-    
-    .badge {
-        border: 1px solid #000;
-        -webkit-print-color-adjust: exact;
-    }
-    
-    @page {
-        margin: 1cm;
-        size: A4 landscape;
-    }
-}
-</style>
-
-<?php include 'includes/footer.php'; ?>
+<script>
+// เปิดใช้งาน tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
