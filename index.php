@@ -180,8 +180,8 @@ try {
         <div class="col-md-4 mb-3">
             <div class="card text-white bg-danger">
                 <div class="card-header d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>ใบแจ้งหนี้ค้างชำระ</strong>
+                    <i class="bi bi-exclamation-triangle me-2" style="color:#000;"></i>
+                    <strong style="color:#000;">ใบแจ้งหนี้ค้างชำระ</strong>
                 </div>
                 <div class="card-body">
                     <h4 class="card-title"><?php echo $overdue_invoices; ?> รายการ</h4>
@@ -196,8 +196,8 @@ try {
         <div class="col-md-4 mb-3">
             <div class="card text-white bg-warning">
                 <div class="card-header d-flex align-items-center">
-                    <i class="bi bi-calendar-x me-2"></i>
-                    <strong>สัญญาใกล้หมดอายุ</strong>
+                    <i class="bi bi-calendar-x me-2" style="color:#000;"></i>
+                    <strong style="color:#000;">สัญญาใกล้หมดอายุ</strong>
                 </div>
                 <div class="card-body">
                     <h4 class="card-title"><?php echo $expiring_contracts; ?> สัญญา</h4>
@@ -212,8 +212,8 @@ try {
         <div class="col-md-4 mb-3">
             <div class="card text-white bg-success">
                 <div class="card-header d-flex align-items-center">
-                    <i class="bi bi-graph-up me-2"></i>
-                    <strong>อัตราการเข้าพัก</strong>
+                    <i class="bi bi-graph-up me-2" style="color:#000;"></i>
+                    <strong style="color:#000;">อัตราการเข้าพัก</strong>
                 </div>
                 <div class="card-body">
                     <h4 class="card-title">

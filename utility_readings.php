@@ -343,12 +343,12 @@ try {
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="water_current" class="form-label">มิเตอร์น้ำ (หน่วย) <span class="text-danger">*</span></label>
+                            <label for="water_current" class="form-label" style="color:#3399FF;">มิเตอร์น้ำ (หน่วย) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="water_current" name="water_current" 
                                    step="0.01" min="0" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="electric_current" class="form-label">มิเตอร์ไฟฟ้า (หน่วย) <span class="text-danger">*</span></label>
+                            <label for="electric_current" class="form-label" style="color:#FF9933;">มิเตอร์ไฟฟ้า (หน่วย) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="electric_current" name="electric_current" 
                                    step="0.01" min="0" required>
                         </div>
@@ -356,12 +356,12 @@ try {
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="water_unit_price" class="form-label">ราคาน้ำ (บาท/หน่วย)</label>
+                            <label for="water_unit_price" class="form-label" style="color:#3399FF;">ราคาน้ำ (บาท/หน่วย)</label>
                             <input type="number" class="form-control" id="water_unit_price" name="water_unit_price" 
                                    step="0.01" min="0" value="25.00">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="electric_unit_price" class="form-label">ราคาไฟฟ้า (บาท/หน่วย)</label>
+                            <label for="electric_unit_price" class="form-label" style="color:#FF9933;">ราคาไฟฟ้า (บาท/หน่วย)</label>
                             <input type="number" class="form-control" id="electric_unit_price" name="electric_unit_price" 
                                    step="0.01" min="0" value="8.50">
                         </div>

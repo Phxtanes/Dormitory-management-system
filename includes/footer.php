@@ -1,4 +1,4 @@
-<footer class="bg-light mt-5 py-4">
+<!-- <footer class="bg-light mt-5 py-4">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
@@ -10,7 +10,7 @@
                         ระบบจัดการหอพักครบวงจร สำหรับการจัดการห้องพัก ผู้เช่า การเงิน และรายงานต่างๆ
                     </p>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3">ห
                     <h6>เมนูหลัก</h6>
                     <ul class="list-unstyled">
                         <li><a href="index.php" class="text-decoration-none">หน้าแรก</a></li>
@@ -121,4 +121,4 @@
         });
     </script>
 </body>
-</html>
+</html> 

@@ -81,6 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 ?>
 
+<style>
+    body {
+        background-color : #CCE5FF;
+    }
+</style>
+
 <?php include 'includes/navbar.php'; ?>
 
 <div class="container-fluid mt-4">
