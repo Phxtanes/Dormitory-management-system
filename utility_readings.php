@@ -108,6 +108,12 @@ try {
 }
 ?>
 
+<style>
+    body {
+        background-image: linear-gradient(to right, #FFCC99, #CCE5FF);
+    }
+</style>
+
 <?php include 'includes/navbar.php'; ?>
 
 <div class="container-fluid mt-4">

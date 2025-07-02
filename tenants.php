@@ -63,6 +63,12 @@ try {
 }
 ?>
 
+<style>
+    body {
+        background-color :#E5FFCC;
+    }
+</style>
+
 <?php include 'includes/navbar.php'; ?>
 
 <div class="container-fluid mt-4">
