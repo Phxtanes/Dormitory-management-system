@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 22, 2025 at 10:00 AM
+-- Generation Time: Jul 02, 2025 at 11:57 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -70,6 +70,13 @@ CREATE TABLE `invoices` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `invoices`
+--
+
+INSERT INTO `invoices` (`invoice_id`, `contract_id`, `invoice_month`, `room_rent`, `water_charge`, `electric_charge`, `other_charges`, `other_charges_description`, `discount`, `total_amount`, `due_date`, `invoice_status`, `payment_date`, `created_at`) VALUES
+(2, 1, '2025-06', 5000.00, 125.00, 1020.00, 0.00, NULL, 0.00, 6145.00, '2025-07-05', 'paid', '2025-07-02', '2025-07-02 03:25:47');
+
 -- --------------------------------------------------------
 
 --
@@ -106,6 +113,13 @@ CREATE TABLE `payments` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `payments`
+--
+
+INSERT INTO `payments` (`payment_id`, `invoice_id`, `payment_amount`, `payment_method`, `payment_date`, `payment_reference`, `notes`, `created_at`) VALUES
+(1, 2, 6145.00, 'cash', '2025-07-02', '123456', '', '2025-07-02 03:26:04');
+
 -- --------------------------------------------------------
 
 --
@@ -130,11 +144,50 @@ CREATE TABLE `rooms` (
 
 INSERT INTO `rooms` (`room_id`, `room_number`, `room_type`, `monthly_rent`, `deposit`, `room_status`, `floor_number`, `room_description`, `created_at`) VALUES
 (1, '101', 'single', 5000.00, 10000.00, 'occupied', 1, 'ห้องเดี่ยว ชั้น 1 พร้อมเครื่องปรับอากาศ', '2025-06-18 08:18:47'),
-(2, '102', 'double', 7000.00, 14000.00, 'available', 1, 'ห้องคู่ ชั้น 1 พร้อมเครื่องปรับอากาศ', '2025-06-18 08:18:47'),
+(2, '102', 'double', 7500.00, 14000.00, 'available', 1, 'ห้องคู่ ชั้น 1 พร้อมเครื่องปรับอากาศ', '2025-06-18 08:18:47'),
 (3, '201', 'single', 5500.00, 11000.00, 'available', 2, 'ห้องเดี่ยว ชั้น 2 วิวสวย', '2025-06-18 08:18:47'),
-(6, '202', 'double', 7000.00, 150000.00, 'available', 2, '', '2025-06-19 06:46:44'),
+(6, '202', 'double', 8000.00, 16000.00, 'available', 2, '', '2025-06-19 06:46:44'),
 (7, '301', 'single', 8000.00, 16000.00, 'available', 3, '', '2025-06-19 06:47:01'),
-(8, '302', 'double', 8500.00, 17000.00, 'available', 3, '', '2025-06-19 06:47:14');
+(8, '302', 'double', 8500.00, 17000.00, 'available', 3, '', '2025-06-19 06:47:14'),
+(9, '103', 'triple', 6000.00, 12000.00, 'available', 1, '', '2025-06-25 03:34:16'),
+(10, '104', 'single', 5500.00, 11000.00, 'available', 1, '', '2025-06-25 03:34:36'),
+(11, '105', 'double', 6000.00, 12000.00, 'available', 1, '', '2025-06-25 03:34:47'),
+(12, '106', 'triple', 6500.00, 13000.00, 'available', 1, '', '2025-06-25 03:35:03');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `system_settings`
+--
+
+CREATE TABLE `system_settings` (
+  `setting_id` int(11) NOT NULL,
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` text DEFAULT NULL,
+  `setting_description` text DEFAULT NULL,
+  `setting_type` enum('text','number','boolean','email','url') DEFAULT 'text',
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `system_settings`
+--
+
+INSERT INTO `system_settings` (`setting_id`, `setting_key`, `setting_value`, `setting_description`, `setting_type`, `updated_at`, `updated_by`) VALUES
+(1, 'dormitory_name', 'หอพักตัวอย่าง', 'ชื่อหอพัก', 'text', '2025-07-02 04:18:58', NULL),
+(2, 'dormitory_address', '', 'ที่อยู่หอพัก', 'text', '2025-07-02 04:18:58', NULL),
+(3, 'dormitory_phone', '', 'เบอร์โทรศัพท์', 'text', '2025-07-02 04:18:58', NULL),
+(4, 'dormitory_email', '', 'อีเมลติดต่อ', 'email', '2025-07-02 04:18:58', NULL),
+(5, 'water_unit_price', '25.00', 'ราคาน้ำต่อหน่วย (บาท)', 'number', '2025-07-02 04:18:58', NULL),
+(6, 'electric_unit_price', '8.00', 'ราคาไฟต่อหน่วย (บาท)', 'number', '2025-07-02 04:18:58', NULL),
+(7, 'late_fee_per_day', '50.00', 'ค่าปรับล่าช้าต่อวัน (บาท)', 'number', '2025-07-02 04:18:58', NULL),
+(8, 'payment_due_days', '7', 'จำนวนวันครบกำหนดชำระ', 'number', '2025-07-02 04:18:58', NULL),
+(9, 'auto_backup', '1', 'สำรองข้อมูลอัตโนมัติ', 'boolean', '2025-07-02 04:18:58', NULL),
+(10, 'notification_email', '1', 'แจ้งเตือนทางอีเมล', 'boolean', '2025-07-02 04:18:58', NULL),
+(11, 'system_maintenance', '0', 'โหมดปิดปรุงระบบ', 'boolean', '2025-07-02 04:18:58', NULL),
+(12, 'max_login_attempts', '5', 'จำนวนครั้งล็อกอินผิดสูงสุด', 'number', '2025-07-02 04:18:58', NULL),
+(13, 'session_timeout', '30', 'หมดอายุ Session (นาที)', 'number', '2025-07-02 04:18:58', NULL);
 
 -- --------------------------------------------------------
 
@@ -192,7 +245,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `username`, `password_hash`, `full_name`, `email`, `user_role`, `is_active`, `last_login`, `created_at`) VALUES
-(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ผู้ดูแลระบบ', 'admin@dormitory.local', 'admin', 1, '2025-06-20 03:35:21', '2025-06-18 08:18:47'),
+(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ผู้ดูแลระบบ', 'admin@dormitory.local', 'admin', 1, '2025-07-02 03:56:37', '2025-06-18 08:18:47'),
 (2, 'staff01', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'เจ้าหน้าที่ 1', 'staff01@dormitory.local', 'staff', 1, NULL, '2025-06-18 08:18:47');
 
 -- --------------------------------------------------------
@@ -214,6 +267,13 @@ CREATE TABLE `utility_readings` (
   `reading_date` date NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `utility_readings`
+--
+
+INSERT INTO `utility_readings` (`reading_id`, `room_id`, `reading_month`, `water_previous`, `water_current`, `water_unit_price`, `electric_previous`, `electric_current`, `electric_unit_price`, `reading_date`, `created_at`) VALUES
+(1, 1, '2025-06', 0.00, 5.00, 25.00, 0.00, 120.00, 8.50, '2025-07-02', '2025-07-02 03:20:28');
 
 --
 -- Indexes for dumped tables
@@ -259,6 +319,14 @@ ALTER TABLE `rooms`
   ADD UNIQUE KEY `room_number` (`room_number`);
 
 --
+-- Indexes for table `system_settings`
+--
+ALTER TABLE `system_settings`
+  ADD PRIMARY KEY (`setting_id`),
+  ADD UNIQUE KEY `setting_key` (`setting_key`),
+  ADD KEY `updated_by` (`updated_by`);
+
+--
 -- Indexes for table `tenants`
 --
 ALTER TABLE `tenants`
@@ -294,7 +362,7 @@ ALTER TABLE `contracts`
 -- AUTO_INCREMENT for table `invoices`
 --
 ALTER TABLE `invoices`
-  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `notifications`
@@ -306,13 +374,19 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT for table `system_settings`
+--
+ALTER TABLE `system_settings`
+  MODIFY `setting_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `tenants`
@@ -330,7 +404,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `utility_readings`
 --
 ALTER TABLE `utility_readings`
-  MODIFY `reading_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `reading_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
@@ -360,6 +434,12 @@ ALTER TABLE `notifications`
 --
 ALTER TABLE `payments`
   ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`invoice_id`);
+
+--
+-- Constraints for table `system_settings`
+--
+ALTER TABLE `system_settings`
+  ADD CONSTRAINT `system_settings_ibfk_1` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`);
 
 --
 -- Constraints for table `utility_readings`
