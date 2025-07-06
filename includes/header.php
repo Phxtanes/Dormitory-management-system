@@ -3,9 +3,12 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-
 // เชื่อมต่อฐานข้อมูล
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../auth_check.php';
+require_once __DIR__ . '/functions.php';
+
+check_login();
 ?>
 <!DOCTYPE html>
 <html lang="th">

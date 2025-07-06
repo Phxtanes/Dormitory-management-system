@@ -16,6 +16,86 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+if (!function_exists('check_user_role')) {
+    function check_user_role($required_role = null) {
+        if ($required_role === null) {
+            return true; // ไม่ต้องการสิทธิ์พิเศษ
+        }
+        
+        $user_role = $_SESSION['user_role'] ?? '';
+        
+        if ($required_role === 'admin' && $user_role !== 'admin') {
+            return false;
+        }
+        
+        if ($required_role === 'staff' && !in_array($user_role, ['admin', 'staff'])) {
+            return false;
+        }
+        
+        return true;
+    }
+}
+
+// Function สำหรับแสดงข้อผิดพลาดเมื่อไม่มีสิทธิ์
+if (!function_exists('require_role')) {
+    function require_role($required_role) {
+        if (!check_user_role($required_role)) {
+            http_response_code(403);
+            $page_title = "ไม่มีสิทธิ์เข้าถึง";
+            include 'includes/header.php';
+            ?>
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card border-danger">
+                            <div class="card-body text-center">
+                                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 4rem;"></i>
+                                <h3 class="card-title text-danger mt-3">ไม่มีสิทธิ์เข้าถึง</h3>
+                                <p class="card-text">
+                                    คุณไม่มีสิทธิ์เข้าถึงหน้านี้<br>
+                                    กรุณาติดต่อผู้ดูแลระบบหากคิดว่าเป็นข้อผิดพลาด
+                                </p>
+                                <a href="index.php" class="btn btn-primary">
+                                    <i class="bi bi-house me-2"></i>กลับหน้าแรก
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php
+            include 'includes/footer.php';
+            exit;
+        }
+    }
+}
+
+// Function สำหรับแสดงข้อมูลผู้ใช้ปัจจุบัน
+if (!function_exists('get_current_user_info')) {
+    function get_current_user_info() {
+        return [
+            'user_id' => $_SESSION['user_id'],
+            'username' => $_SESSION['username'],
+            'full_name' => $_SESSION['full_name'],
+            'user_role' => $_SESSION['user_role']
+        ];
+    }
+}
+
+// Function สำหรับตรวจสอบว่าเป็น Admin หรือไม่
+if (!function_exists('is_admin')) {
+    function is_admin() {
+        return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
+    }
+}
+
+// Function สำหรับตรวจสอบว่าเป็น Staff หรือไม่ (รวม Admin ด้วย)
+if (!function_exists('is_staff')) {
+    function is_staff() {
+        return isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'staff']);
+    }
+}
+
 // ตรวจสอบว่าบัญชีผู้ใช้ยังคงใช้งานได้
 require_once 'config.php';
 

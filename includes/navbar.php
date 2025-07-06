@@ -13,14 +13,6 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Function สำหรับตรวจสอบสิทธิ์
-function is_admin() {
-    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
-}
-
-function is_staff() {
-    return isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'staff']);
-}
 ?>
 
 <style>
@@ -125,7 +117,28 @@ function is_staff() {
                     </ul>
                 </li>
                 <?php endif; ?>
+
+                <?php if (is_admin()): ?>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                       <i class="bi bi-bell"></i> การแจ้งเตือน
+                    </a>    
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="send_notifications.php">ส่งการแจ้งเตือน</a></li>
+                        <li><a class="dropdown-item" href="notification_history.php">ประวัติการแจ้งเตือน</a></li>
+                        <li><a class="dropdown-item" href="auto_notifications.php"><i class="bi bi-robot me-2"></i>การแจ้งเตือนอัตโนมัติ</a></li>
+                        <li><a class="dropdown-item" href="email_settings.php"><i class="bi bi-gear me-2"></i>ตั้งค่าอีเมล</a></li>
+                    </ul>
+                </li>
+                <?php endif; ?>
             </ul>
+
+            <!-- <div class="col-md-3 mb-3">
+                <a href="send_notifications.php" class="btn btn-outline-info w-100 py-3">
+                    <i class="bi bi-bell fs-4 d-block mb-2"></i>
+                    ส่งการแจ้งเตือน
+                </a>
+            </div> -->
             
             <!-- User Dropdown -->
             <ul class="navbar-nav">
