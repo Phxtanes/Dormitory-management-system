@@ -103,6 +103,59 @@ if (!isset($_SESSION['user_id'])) {
                         <li><a class="dropdown-item" href="reports_overdue.php">รายงานค้างชำระ</a></li>
                     </ul>
                 </li>
+
+                
+                <!-- เพิ่มเมนูนี้ใน navbar.php ใต้เมนู "ค่าใช้จ่าย" -->
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="depositsDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-piggy-bank"></i> เงินมัดจำ
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="deposits.php">
+                            <i class="bi bi-list-check"></i> จัดการเงินมัดจำ
+                        </a></li>
+                        <li><a class="dropdown-item" href="add_deposit.php">
+                            <i class="bi bi-plus-circle"></i> เพิ่มเงินมัดจำ
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="deposits.php?status=pending">
+                            <i class="bi bi-hourglass-split"></i> รอดำเนินการ
+                        </a></li>
+                        <li><a class="dropdown-item" href="deposits.php?status=received">
+                            <i class="bi bi-check-circle"></i> รับแล้ว
+                        </a></li>
+                        <li><a class="dropdown-item" href="deposits.php?status=fully_refunded">
+                            <i class="bi bi-arrow-return-left"></i> คืนแล้ว
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="deposit_reports.php">
+                            <i class="bi bi-graph-up"></i> รายงานเงินมัดจำ
+                        </a></li>
+                    </ul>
+                </li>
+
+                <!-- เพิ่มเมนูเอกสารใต้เมนู "จัดการผู้เช่า" -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="documentsDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-file-earmark-text"></i> เอกสาร
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="all_documents.php">
+                            <i class="bi bi-files"></i> เอกสารทั้งหมด
+                        </a></li>
+                        <li><a class="dropdown-item" href="contracts.php">
+                            <i class="bi bi-file-text"></i> สัญญาเช่า
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="document_types.php">
+                            <i class="bi bi-tags"></i> จัดการประเภทเอกสาร
+                        </a></li>
+                        <li><a class="dropdown-item" href="document_settings.php">
+                            <i class="bi bi-gear"></i> ตั้งค่าการอัพโหลด
+                        </a></li>
+                    </ul>
+                </li>
                 
                 <?php if (is_admin()): ?>
                 <li class="nav-item dropdown">
