@@ -188,6 +188,12 @@ try {
 }
 ?>
 
+<style>
+    body {
+        background-color : #CCE5FF;
+    }
+</style>
+
 
 <?php include 'includes/navbar.php'; ?>
 

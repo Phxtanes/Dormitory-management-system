@@ -110,7 +110,7 @@ try {
 
 <style>
     body {
-        background-image: linear-gradient(to right, #FFCC99, #);
+        background-image: linear-gradient(to right, #FFCC99, #CCE5FF);
     }
 </style>
 
