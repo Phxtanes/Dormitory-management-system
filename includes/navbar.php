@@ -144,9 +144,9 @@ if (!isset($_SESSION['user_id'])) {
                         <li><a class="dropdown-item" href="all_documents.php">
                             <i class="bi bi-files"></i> เอกสารทั้งหมด
                         </a></li>
-                        <li><a class="dropdown-item" href="contracts.php">
+                        <!-- <li><a class="dropdown-item" href="contracts.php">
                             <i class="bi bi-file-text"></i> สัญญาเช่า
-                        </a></li>
+                        </a></li> -->
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="document_types.php">
                             <i class="bi bi-tags"></i> จัดการประเภทเอกสาร
